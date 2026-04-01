@@ -42,6 +42,7 @@ jobs:
     runs-on: self-hosted
     if: github.ref == 'refs/heads/main'
     environment: test
+    timeout-minutes: 15
 
     steps:
     - name: Setup Kubernetes Config
@@ -142,7 +143,7 @@ jobs:
                       number: 80
         EOF
 
-        kubectl rollout status deployment/reststop-ui -n test --timeout=300s
+        kubectl rollout status deployment/reststop-ui -n test --timeout=600s
 
   deploy-production:
     needs: [build, deploy-test]
