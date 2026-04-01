@@ -1,0 +1,42 @@
+/* variables.css — design tokens for light and dark mode */
+
+:root {
+  --bg: #f5f5f2;
+  --surface: #ffffff;
+  --surface2: #f0efe9;
+  --border: #e2e1db;
+  --text: #1a1a18;
+  --text2: #6b6b65;
+  --text3: #9b9b94;
+  --accent: #1d6b4a;
+  --accent2: #e8f5ee;
+  --accent-text: #0f4a30;
+  --danger: #c0392b;
+  --danger-bg: #fdf0ee;
+  --warning: #b45309;
+  --warning-bg: #fef9ee;
+  --info: #1a5fa8;
+  --info-bg: #eef4fc;
+  --sidebar-w: 220px;
+  --header-h: 52px;
+  --radius: 8px;
+  --radius-lg: 12px;
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --transition: 0.15s ease;
+}
+
+.dark {
+  --bg: #111110;
+  --surface: #1c1c1a;
+  --surface2: #242422;
+  --border: #2e2e2b;
+  --text: #f0efe9;
+  --text2: #a8a89f;
+  --text3: #6b6b65;
+  --accent: #2a9d6f;
+  --accent2: #0f2e1f;
+  --accent-text: #7dd4aa;
+  --danger-bg: #2a1210;
+  --warning-bg: #2a1e0a;
+  --info-bg: #0e1e33;
+}

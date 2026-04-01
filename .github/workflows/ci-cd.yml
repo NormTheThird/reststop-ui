@@ -1,0 +1,155 @@
+name: RestStop UI CI/CD
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  HARBOR_REGISTRY: "10.47.1.106"
+  HARBOR_PROJECT: "library"
+
+jobs:
+  build:
+    runs-on: self-hosted
+    outputs:
+      image-tag: ${{ steps.build.outputs.image-tag }}
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Login to Harbor
+      run: |
+        echo "${{ secrets.HARBOR_PASSWORD }}" | docker login ${{ env.HARBOR_REGISTRY }} \
+          --username "${{ secrets.HARBOR_USERNAME }}" --password-stdin
+
+    - name: Build and Push UI Image
+      id: build
+      run: |
+        IMAGE_TAG=${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/reststop-ui:${{ github.sha }}
+        IMAGE_LATEST=${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/reststop-ui:latest
+
+        docker build -f Dockerfile -t $IMAGE_TAG -t $IMAGE_LATEST .
+        docker push $IMAGE_TAG
+        docker push $IMAGE_LATEST
+
+        echo "image-tag=$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+  deploy-test:
+    needs: build
+    runs-on: self-hosted
+    if: github.ref == 'refs/heads/main'
+    environment: test
+
+    steps:
+    - name: Setup Kubernetes Config
+      run: |
+        echo "${{ secrets.KUBE_CONFIG }}" | base64 -d > kubeconfig
+        export KUBECONFIG=kubeconfig
+        kubectl cluster-info
+
+    - name: Create Harbor Registry Secret
+      run: |
+        export KUBECONFIG=kubeconfig
+        kubectl create secret docker-registry harbor-registry \
+          --docker-server=${{ env.HARBOR_REGISTRY }} \
+          --docker-username="${{ secrets.HARBOR_USERNAME }}" \
+          --docker-password="${{ secrets.HARBOR_PASSWORD }}" \
+          -n test --dry-run=client -o yaml | kubectl apply -f -
+
+    - name: Deploy UI
+      run: |
+        export KUBECONFIG=kubeconfig
+        IMAGE_TAG=${{ needs.build.outputs.image-tag }}
+
+        cat <<EOF | kubectl apply -f -
+        apiVersion: apps/v1
+        kind: Deployment
+        metadata:
+          name: reststop-ui
+          namespace: test
+        spec:
+          replicas: 1
+          selector:
+            matchLabels:
+              app: reststop-ui
+          template:
+            metadata:
+              labels:
+                app: reststop-ui
+            spec:
+              imagePullSecrets:
+              - name: harbor-registry
+              containers:
+              - name: reststop-ui
+                image: $IMAGE_TAG
+                ports:
+                - containerPort: 80
+                resources:
+                  requests:
+                    memory: "64Mi"
+                    cpu: "50m"
+                  limits:
+                    memory: "128Mi"
+                    cpu: "100m"
+                livenessProbe:
+                  httpGet:
+                    path: /
+                    port: 80
+                  initialDelaySeconds: 10
+                  periodSeconds: 10
+                readinessProbe:
+                  httpGet:
+                    path: /
+                    port: 80
+                  initialDelaySeconds: 5
+                  periodSeconds: 5
+        ---
+        apiVersion: v1
+        kind: Service
+        metadata:
+          name: reststop-ui-service
+          namespace: test
+        spec:
+          selector:
+            app: reststop-ui
+          ports:
+          - port: 80
+            targetPort: 80
+            protocol: TCP
+          type: ClusterIP
+        ---
+        apiVersion: networking.k8s.io/v1
+        kind: Ingress
+        metadata:
+          name: reststop-ui-ingress
+          namespace: test
+          annotations:
+            nginx.ingress.kubernetes.io/rewrite-target: /
+        spec:
+          rules:
+          - host: ui-test.reststop.local
+            http:
+              paths:
+              - path: /
+                pathType: Prefix
+                backend:
+                  service:
+                    name: reststop-ui-service
+                    port:
+                      number: 80
+        EOF
+
+        kubectl rollout status deployment/reststop-ui -n test --timeout=300s
+
+  deploy-production:
+    needs: [build, deploy-test]
+    runs-on: self-hosted
+    if: false
+    environment: production
+
+    steps:
+    - name: Production Deployment Placeholder
+      run: echo "Production deployment will be implemented later"
