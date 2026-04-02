@@ -31,7 +31,9 @@ jobs:
         IMAGE_TAG=${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/reststop-ui:${{ github.sha }}
         IMAGE_LATEST=${{ env.HARBOR_REGISTRY }}/${{ env.HARBOR_PROJECT }}/reststop-ui:latest
 
-        docker build -f Dockerfile -t $IMAGE_TAG -t $IMAGE_LATEST .
+        docker build -f Dockerfile \
+          --build-arg VITE_API_URL=http://10.47.1.110:30421 \
+          -t $IMAGE_TAG -t $IMAGE_LATEST .
         docker push $IMAGE_TAG
         docker push $IMAGE_LATEST
 
